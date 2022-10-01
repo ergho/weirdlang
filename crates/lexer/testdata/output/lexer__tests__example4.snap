@@ -1,0 +1,13 @@
+---
+source: crates/lexer/src/lib.rs
+expression: test_lexing(contents)
+---
+ (Token: Integer, Value: "10") 
+ (Token: Equal, Value: "==") 
+ (Token: Integer, Value: "10") 
+ (Token: Semicolon, Value: ";") 
+ (Token: Integer, Value: "11") 
+ (Token: NotEqual, Value: "!=") 
+ (Token: Integer, Value: "9") 
+ (Token: Semicolon, Value: ";") 
+
