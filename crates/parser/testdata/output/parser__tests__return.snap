@@ -1,0 +1,36 @@
+---
+source: src/lib.rs
+expression: snapshot_parsing(contents)
+---
+[
+    Return(
+        ReturnStatement {
+            token: (Return,"return"),
+            expr: Number(
+                Number {
+                    val: "5",
+                },
+            ),
+        },
+    ),
+    Return(
+        ReturnStatement {
+            token: (Return,"return"),
+            expr: Number(
+                Number {
+                    val: "10",
+                },
+            ),
+        },
+    ),
+    Return(
+        ReturnStatement {
+            token: (Return,"return"),
+            expr: Number(
+                Number {
+                    val: "993322",
+                },
+            ),
+        },
+    ),
+]

@@ -1,0 +1,30 @@
+---
+source: src/lib.rs
+expression: snapshot_parsing(contents)
+---
+[
+    Let(
+        LetStatement {
+            token: (Let,"let"),
+            name: "x",
+            assign: (Assign,"="),
+            expr: Number(
+                Number {
+                    val: "10",
+                },
+            ),
+        },
+    ),
+    Let(
+        LetStatement {
+            token: (Let,"let"),
+            name: "y",
+            assign: (Assign,"="),
+            expr: Number(
+                Number {
+                    val: "15",
+                },
+            ),
+        },
+    ),
+]
