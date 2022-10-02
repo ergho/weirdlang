@@ -1,6 +1,6 @@
 use std::io::Write;
 
-const PROMPT: &str = ">> ";
+const PROMPT: &str = ">>";
 
 fn start(input: std::io::Stdin, mut output: std::io::Stdout) {
     loop {
@@ -10,14 +10,14 @@ fn start(input: std::io::Stdin, mut output: std::io::Stdout) {
         input.read_line(&mut buffer).expect("cant read line");
         let buffer = buffer.trim();
         let mut lex = lexer::Lexer::new(buffer);
-        lex.read_char();
+        //lex.read_char();
         loop {
             let tok = lex.next_token();
             if tok.kind == lexer::TokenKind::EndOfFile {
                 break;
             }
             if tok.kind == lexer::TokenKind::Illegal {
-                panic!("Failed with {:?}", tok.val);
+                panic!("Failed with {:?}", tok.kind);
             }
             println!("{:?}", tok);
         }
