@@ -2,12 +2,12 @@
 source: crates/lexer/src/lib.rs
 expression: test_lexing(contents)
 ---
- (Plus,"+")
- (Assign,"=")
- (Minus,"-")
- (LeftParen,"(")
- (RightParen,")")
- (LeftBrace,"{")
- (RightBrace,"}")
- (Semicolon,";")
+ (Token: Plus, Location: 0..1) 
+ (Token: Assign, Location: 1..2) 
+ (Token: Minus, Location: 2..3) 
+ (Token: LeftParen, Location: 3..4) 
+ (Token: RightParen, Location: 4..5) 
+ (Token: LeftBrace, Location: 5..6) 
+ (Token: RightBrace, Location: 6..7) 
+ (Token: Semicolon, Location: 7..8) 
 

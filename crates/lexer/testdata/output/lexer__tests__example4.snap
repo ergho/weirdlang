@@ -2,12 +2,12 @@
 source: crates/lexer/src/lib.rs
 expression: test_lexing(contents)
 ---
- (Integer,"10")
- (Equal,"==")
- (Integer,"10")
- (Semicolon,";")
- (Integer,"11")
- (NotEqual,"!=")
- (Integer,"9")
- (Semicolon,";")
+ (Token: Integer("10"), Location: 0..2) 
+ (Token: Equal, Location: 3..5) 
+ (Token: Integer("10"), Location: 6..8) 
+ (Token: Semicolon, Location: 8..9) 
+ (Token: Integer("11"), Location: 11..13) 
+ (Token: NotEqual, Location: 14..16) 
+ (Token: Integer("9"), Location: 17..18) 
+ (Token: Semicolon, Location: 18..19) 
 
