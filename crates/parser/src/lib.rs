@@ -1,5 +1,8 @@
 #![allow(dead_code)]
-use lexer::{new_lexer, Lexer, Token, TokenKind};
+use lexer::new_lexer;
+use lexer::Lexer;
+use lexer::Token;
+use lexer::TokenKind;
 
 #[derive(Debug)]
 struct Program {
@@ -25,7 +28,7 @@ impl LetStatement {
     fn parse(parser: &mut Parser) -> Result<Statement, ParseError> {
         let lstmt = LetStatement {
             token: parser.expect_token(TokenKind::Let)?,
-            name: parser.expect_token(TokenKind::Identifier)?.val,
+            name: parser.parse_identifier()?,
             assign: parser.expect_token(TokenKind::Assign)?,
             expr: Expression::parse(parser)?,
         };
@@ -69,10 +72,10 @@ enum Expression {
 
 impl Expression {
     fn parse(parser: &mut Parser) -> Result<Expression, ParseError> {
-        Ok(match parser.current_token.kind {
-            TokenKind::Integer => Expression::Number(Number {
-                val: parser.current_token.val.clone(),
-            }),
+        Ok(match &parser.current_token.kind {
+            TokenKind::Integer(n) => {
+                Expression::Number(Number { val: n.to_string() })
+            }
             _ => todo!("not yet done"),
         })
     }
@@ -89,15 +92,15 @@ struct Identifier {
 }
 
 #[derive(Debug)]
-struct Parser {
-    lexer: Lexer,
+struct Parser<'a> {
+    lexer: Lexer<'a>,
     current_token: Token,
     peek_token: Token,
     errors: Vec<ParseError>,
 }
 
-impl Parser {
-    fn new(mut lexer: Lexer) -> Self {
+impl<'a> Parser<'a> {
+    fn new(mut lexer: Lexer<'a>) -> Self {
         Self {
             current_token: lexer.next_token(),
             peek_token: lexer.next_token(),
@@ -148,7 +151,7 @@ impl Parser {
         let stmt = match self.current_token.kind {
             TokenKind::Let => self.parse_statement_let()?,
             TokenKind::Return => self.parse_statement_return()?,
-            _ => panic!("{:#?}", self.current_token.kind),
+            _ => panic!("Token: {:#?} Location: {:#?}", self.current_token.kind, self.current_token.loc),
         };
         self.next_token();
         Ok(stmt)
@@ -168,6 +171,20 @@ impl Parser {
             self.next_token();
         }
         Ok(retstmt)
+    }
+
+    fn parse_identifier(&mut self) -> Result<String, ParseError> {
+
+        let ident = match &self.current_token.kind {
+            TokenKind::Identifier(ident) => Ok(ident.to_string()),
+            _ => Err(ParseError::Unexpected {
+                got: self.current_token.kind.clone(),
+                expected: TokenKind::Identifier("a".to_string()),
+            }),
+        };
+
+        self.next_token();
+        ident
     }
 }
 fn snapshot_parsing(input: &str) -> String {
@@ -196,7 +213,11 @@ impl std::fmt::Display for ParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Unexpected { got, expected } => {
-                write!(f, "Got token: {:?}, Expected  token: {:?}", got, expected)
+                write!(
+                    f,
+                    "Got token: {:?}, Expected  token: {:?}",
+                    got, expected
+                )
             }
         }
     }

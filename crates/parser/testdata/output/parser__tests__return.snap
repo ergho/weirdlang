@@ -1,11 +1,11 @@
 ---
-source: src/lib.rs
+source: crates/parser/src/lib.rs
 expression: snapshot_parsing(contents)
 ---
 [
     Return(
         ReturnStatement {
-            token: (Return,"return"),
+            token: (Token: Return, Location: 0..6) ,
             expr: Number(
                 Number {
                     val: "5",
@@ -15,7 +15,7 @@ expression: snapshot_parsing(contents)
     ),
     Return(
         ReturnStatement {
-            token: (Return,"return"),
+            token: (Token: Return, Location: 10..16) ,
             expr: Number(
                 Number {
                     val: "10",
@@ -25,7 +25,7 @@ expression: snapshot_parsing(contents)
     ),
     Return(
         ReturnStatement {
-            token: (Return,"return"),
+            token: (Token: Return, Location: 21..27) ,
             expr: Number(
                 Number {
                     val: "993322",

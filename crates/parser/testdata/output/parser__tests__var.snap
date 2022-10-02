@@ -1,13 +1,13 @@
 ---
-source: src/lib.rs
+source: crates/parser/src/lib.rs
 expression: snapshot_parsing(contents)
 ---
 [
     Let(
         LetStatement {
-            token: (Let,"let"),
+            token: (Token: Let, Location: 0..3) ,
             name: "x",
-            assign: (Assign,"="),
+            assign: (Token: Assign, Location: 6..7) ,
             expr: Number(
                 Number {
                     val: "10",
@@ -17,9 +17,9 @@ expression: snapshot_parsing(contents)
     ),
     Let(
         LetStatement {
-            token: (Let,"let"),
+            token: (Token: Let, Location: 12..15) ,
             name: "y",
-            assign: (Assign,"="),
+            assign: (Token: Assign, Location: 18..19) ,
             expr: Number(
                 Number {
                     val: "15",
