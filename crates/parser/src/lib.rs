@@ -1,5 +1,4 @@
 #![allow(dead_code)]
-use anyhow::Result;
 use lexer::{new_lexer, Lexer, Token, TokenKind};
 
 #[derive(Debug)]
@@ -23,7 +22,7 @@ struct LetStatement {
 }
 
 impl LetStatement {
-    fn parse(parser: &mut Parser) -> Result<Statement> {
+    fn parse(parser: &mut Parser) -> Result<Statement, ParseError> {
         let lstmt = LetStatement {
             token: parser.expect_token(TokenKind::Let)?,
             name: parser.expect_token(TokenKind::Identifier)?.val,
@@ -41,7 +40,7 @@ struct ReturnStatement {
 }
 
 impl ReturnStatement {
-    fn parse(parser: &mut Parser) -> Result<Statement> {
+    fn parse(parser: &mut Parser) -> Result<Statement, ParseError> {
         let retstmt = ReturnStatement {
             token: parser.expect_token(TokenKind::Return)?,
             expr: Expression::parse(parser)?,
@@ -57,7 +56,7 @@ struct ExpressionStatement {
 }
 
 impl ExpressionStatement {
-    fn parse(parser: &mut Parser) -> Result<Statement> {
+    fn parse() -> Result<Statement, ParseError> {
         todo!();
     }
 }
@@ -69,23 +68,13 @@ enum Expression {
 }
 
 impl Expression {
-    fn parse(parser: &mut Parser) -> Result<Expression> {
+    fn parse(parser: &mut Parser) -> Result<Expression, ParseError> {
         Ok(match parser.current_token.kind {
             TokenKind::Integer => Expression::Number(Number {
                 val: parser.current_token.val.clone(),
             }),
             _ => todo!("not yet done"),
         })
-
-        //while parser.current_token.kind != TokenKind::Semicolon {
-        //    println!("curr{:#?}", parser.current_token.kind);
-        //    println!("peek{:#?}", parser.peek_token.kind);
-        //    thing +=1;
-        //    println!("{}", thing);
-        //    parser.next_token();
-        //}
-        //parser.next_token();
-        //Ok(num)
     }
 }
 
@@ -104,7 +93,7 @@ struct Parser {
     lexer: Lexer,
     current_token: Token,
     peek_token: Token,
-    errors: Vec<String>,
+    errors: Vec<ParseError>,
 }
 
 impl Parser {
@@ -117,7 +106,7 @@ impl Parser {
         }
     }
 
-    fn errors(&self) -> &[String] {
+    fn errors(&self) -> &[ParseError] {
         &self.errors
     }
 
@@ -126,14 +115,13 @@ impl Parser {
             self.next_token();
         }
     }
-    fn expect_token(&mut self, kind: TokenKind) -> Result<Token> {
+    fn expect_token(&mut self, kind: TokenKind) -> Result<Token, ParseError> {
         let token = self.current_token.clone();
         if token.kind != kind {
-            return Err(anyhow::anyhow!(
-                "Got token: {:?}, Expected token: {:?}",
-                token,
-                kind
-            ));
+            return Err(ParseError::Unexpected {
+                got: token.kind,
+                expected: kind,
+            });
         }
         self.next_token();
         Ok(token)
@@ -148,17 +136,15 @@ impl Parser {
     fn parse_program(&mut self) -> Program {
         let mut program = Program { statements: vec![] };
         while self.current_token.kind != TokenKind::EndOfFile {
-            //println!("parsing statement {:#?}", self);
-            // println!("Statements: {:#?}", program.statements);
-            let statement = self.parse_statement();
-            if let Ok(stmt) = statement {
-                program.statements.push(stmt);
+            match self.parse_statement() {
+                Ok(stmt) => program.statements.push(stmt),
+                Err(err) => self.errors.push(err),
             }
         }
         program
     }
 
-    fn parse_statement(&mut self) -> Result<Statement> {
+    fn parse_statement(&mut self) -> Result<Statement, ParseError> {
         let stmt = match self.current_token.kind {
             TokenKind::Let => self.parse_statement_let()?,
             TokenKind::Return => self.parse_statement_return()?,
@@ -168,7 +154,7 @@ impl Parser {
         Ok(stmt)
     }
 
-    fn parse_statement_let(&mut self) -> Result<Statement> {
+    fn parse_statement_let(&mut self) -> Result<Statement, ParseError> {
         let lstmt = LetStatement::parse(self)?;
         while self.current_token.kind != TokenKind::Semicolon {
             self.next_token();
@@ -176,7 +162,7 @@ impl Parser {
         Ok(lstmt)
     }
 
-    fn parse_statement_return(&mut self) -> Result<Statement> {
+    fn parse_statement_return(&mut self) -> Result<Statement, ParseError> {
         let retstmt = ReturnStatement::parse(self).unwrap();
         while self.current_token.kind != TokenKind::Semicolon {
             self.next_token();
@@ -193,6 +179,26 @@ fn snapshot_parsing(input: &str) -> String {
         format!("{:#?}", program.statements)
     } else {
         format!("{:#?}", parser.errors)
+    }
+}
+
+#[derive(Debug)]
+enum ParseError {
+    Unexpected {
+        got: lexer::TokenKind,
+        expected: lexer::TokenKind,
+    },
+}
+
+impl std::error::Error for ParseError {}
+
+impl std::fmt::Display for ParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Unexpected { got, expected } => {
+                write!(f, "Got token: {:?}, Expected  token: {:?}", got, expected)
+            }
+        }
     }
 }
 

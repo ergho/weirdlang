@@ -1,6 +1,10 @@
 #![allow(dead_code)]
 
-use std::{collections::VecDeque, fmt::Debug, iter::Peekable, ops::Range, str::CharIndices};
+use std::collections::VecDeque;
+use std::fmt::Debug;
+use std::iter::Peekable;
+use std::ops::Range;
+use std::str::CharIndices;
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct Token {
@@ -89,10 +93,7 @@ impl<'c> Debug for Lexer<'c> {
 impl<'a> Lexer<'a> {
     pub fn new(input: &'a str) -> Self {
         let chars = input.char_indices().peekable();
-        Self {
-            input,
-            chars,
-        }
+        Self { input, chars }
     }
 
     pub fn next_token(&mut self) -> Token {
@@ -103,7 +104,7 @@ impl<'a> Lexer<'a> {
                 }
                 Some((offset, ch)) => match ch {
                     '=' => self.handle_equal(offset),
-                    '+' =>  Token::new_at(TokenKind::Plus, offset),
+                    '+' => Token::new_at(TokenKind::Plus, offset),
                     '!' => self.handle_exclamation_mark(offset),
                     '-' => Token::new_at(TokenKind::Minus, offset),
                     '(' => Token::new_at(TokenKind::LeftParen, offset),
@@ -120,7 +121,7 @@ impl<'a> Lexer<'a> {
                     '*' => Token::new_at(TokenKind::Multiplication, offset),
                     _ => {
                         if ch.is_ascii_alphabetic() || ch == '_' {
-                            return self.read_identifier(offset)
+                            return self.read_identifier(offset);
                         } else if ch.is_ascii_digit() {
                             self.read_number(offset)
                         } else {
@@ -128,49 +129,53 @@ impl<'a> Lexer<'a> {
                         }
                     }
                 },
-                _ => Token::new_at(TokenKind::EndOfFile, 0)
+                _ => Token::new_at(TokenKind::EndOfFile, 0),
             };
         }
     }
 
-    fn read_identifier(&mut self, offset: usize)  -> Token {
+    fn read_identifier(&mut self, offset: usize) -> Token {
         let mut end = offset;
 
-        while self.chars.peek().map_or(false, |(_, ch)| ch.is_ascii_alphabetic()) {
+        while self
+            .chars
+            .peek()
+            .map_or(false, |(_, ch)| ch.is_ascii_alphabetic())
+        {
             end = self.chars.next().expect("safe, just peeked").0;
         }
         let kind = match &self.input[offset..=end] {
             "let" => TokenKind::Let,
-            "fn" =>  TokenKind::Function,
+            "fn" => TokenKind::Function,
             "true" => TokenKind::True,
             "false" => TokenKind::False,
             "return" => TokenKind::Return,
             "if" => TokenKind::If,
             "else" => TokenKind::Else,
-            _ => TokenKind::Identifier(self.input[offset..=end].to_string())
-
+            _ => TokenKind::Identifier(self.input[offset..=end].to_string()),
         };
         Token {
-
             kind,
-            loc: offset..end + 1
+            loc: offset..end + 1,
         }
-
     }
 
     fn read_number(&mut self, offset: usize) -> Token {
-
         let mut end = offset;
 
-        while self.chars.peek().map_or(false, |(_, ch)| ch.is_ascii_digit()) {
+        while self
+            .chars
+            .peek()
+            .map_or(false, |(_, ch)| ch.is_ascii_digit())
+        {
             end = self.chars.next().expect("safe, just peeked").0;
         }
 
         let value = self.input[offset..=end].to_string();
 
         Token {
-            kind:TokenKind::Integer(value),
-            loc: offset..end + 1
+            kind: TokenKind::Integer(value),
+            loc: offset..end + 1,
         }
     }
 
@@ -194,7 +199,7 @@ impl<'a> Lexer<'a> {
         let peeked = self.chars.peek().unwrap();
 
         match peeked {
-            (_,'=') => self.read_two(TokenKind::NotEqual, offset),
+            (_, '=') => self.read_two(TokenKind::NotEqual, offset),
             _ => self.read_one(TokenKind::ExclamationMark, offset),
         }
     }
@@ -224,7 +229,10 @@ pub fn test_lexing(input: &str) -> String {
         }
 
         if tok.kind == TokenKind::Illegal {
-            panic!("Failure, {:?}", lexer.input[tok.loc.start..tok.loc.end].to_string());
+            panic!(
+                "Failure, {:?}",
+                lexer.input[tok.loc.start..tok.loc.end].to_string()
+            );
         }
         tokens.push_back(tok);
     }
@@ -260,5 +268,4 @@ mod tests {
     test_next_token!(test_example2, "../testdata/input/example2.wl");
     test_next_token!(test_example3, "../testdata/input/example3.wl");
     test_next_token!(test_example4, "../testdata/input/example4.wl");
-
 }
