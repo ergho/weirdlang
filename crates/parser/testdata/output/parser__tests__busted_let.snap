@@ -1,0 +1,26 @@
+---
+source: crates/parser/src/lib.rs
+expression: snapshot_parsing(contents)
+---
+[
+    Unexpected {
+        got: Integer(
+            "123",
+        ),
+        expected: Identifier(
+            "a",
+        ),
+    },
+    Unexpected {
+        got: Integer(
+            "3",
+        ),
+        expected: Assign,
+    },
+    Unexpected {
+        got: Assign,
+        expected: Identifier(
+            "a",
+        ),
+    },
+]

@@ -1,3 +1,5 @@
+#![deny(clippy::all)]
+#![warn(clippy::pedantic)]
 #![allow(dead_code)]
 use lexer::new_lexer;
 use lexer::Lexer;
@@ -70,14 +72,26 @@ enum Expression {
     Number(Number),
 }
 
+#[derive(Debug)]
+enum Prefix {
+    ExclamationMark,
+    Minus,
+}
+
 impl Expression {
     fn parse(parser: &mut Parser) -> Result<Expression, ParseError> {
-        Ok(match &parser.current_token.kind {
+        match &parser.current_token.kind {
             TokenKind::Integer(n) => {
-                Expression::Number(Number { val: n.to_string() })
+                Ok(Expression::Number(Number { val: n.to_string() }))
             }
-            _ => todo!("not yet done"),
-        })
+            TokenKind::Identifier(s) => {
+                Ok(Expression::Ident(Identifier { val: s.to_string() }))
+            }
+            _ => Err(ParseError::OutOfPlace {
+                got: parser.current_token.kind.clone(),
+                location: parser.current_token.loc.clone(),
+            }),
+        }
     }
 }
 
@@ -88,7 +102,7 @@ struct Number {
 
 #[derive(Debug, PartialEq)]
 struct Identifier {
-    token: Token,
+    val: String,
 }
 
 #[derive(Debug)]
@@ -113,14 +127,15 @@ impl<'a> Parser<'a> {
         &self.errors
     }
 
-    fn skip_until_toke(&mut self, kind: TokenKind) {
-        while self.current_token.kind != kind {
+    fn skip_until_token(&mut self, kind: &TokenKind) {
+        while &self.current_token.kind != kind {
             self.next_token();
         }
     }
     fn expect_token(&mut self, kind: TokenKind) -> Result<Token, ParseError> {
         let token = self.current_token.clone();
         if token.kind != kind {
+            self.skip_until_token(&TokenKind::Semicolon);
             return Err(ParseError::Unexpected {
                 got: token.kind,
                 expected: kind,
@@ -130,12 +145,23 @@ impl<'a> Parser<'a> {
         Ok(token)
     }
 
-    fn next_token(&mut self) -> Token {
+    fn next_token(&mut self) {
         self.current_token = self.peek_token.clone();
         self.peek_token = self.lexer.next_token();
-        self.current_token.clone()
+        //    self.current_token.clone()
     }
 
+    fn parse_prefix(&mut self) -> Result<Expression, ParseError> {
+        let _prefix = match self.current_token.kind {
+            TokenKind::ExclamationMark => Prefix::ExclamationMark,
+            TokenKind::Minus => Prefix::Minus,
+            _ => todo!(),
+        };
+        self.next_token();
+
+        todo!();
+
+    }
     fn parse_program(&mut self) -> Program {
         let mut program = Program { statements: vec![] };
         while self.current_token.kind != TokenKind::EndOfFile {
@@ -148,13 +174,14 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_statement(&mut self) -> Result<Statement, ParseError> {
-        let stmt = match self.current_token.kind {
-            TokenKind::Let => self.parse_statement_let()?,
-            TokenKind::Return => self.parse_statement_return()?,
-            _ => panic!("Token: {:#?} Location: {:#?}", self.current_token.kind, self.current_token.loc),
+        let stmt: Result<Statement, ParseError> = match self.current_token.kind
+        {
+            TokenKind::Let => self.parse_statement_let(),
+            TokenKind::Return => self.parse_statement_return(),
+            _ => panic!(),
         };
         self.next_token();
-        Ok(stmt)
+        stmt
     }
 
     fn parse_statement_let(&mut self) -> Result<Statement, ParseError> {
@@ -166,7 +193,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_statement_return(&mut self) -> Result<Statement, ParseError> {
-        let retstmt = ReturnStatement::parse(self).unwrap();
+        let retstmt = ReturnStatement::parse(self)?;
         while self.current_token.kind != TokenKind::Semicolon {
             self.next_token();
         }
@@ -174,7 +201,6 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_identifier(&mut self) -> Result<String, ParseError> {
-
         let ident = match &self.current_token.kind {
             TokenKind::Identifier(ident) => Ok(ident.to_string()),
             _ => Err(ParseError::Unexpected {
@@ -183,6 +209,12 @@ impl<'a> Parser<'a> {
             }),
         };
 
+        if ident.is_err() {
+            println!("We are skipping {:?}", self.current_token.kind.clone());
+            println!("Peeking at {:?}", self.peek_token.kind.clone());
+            self.skip_until_token(&TokenKind::Semicolon);
+            return ident;
+        }
         self.next_token();
         ident
     }
@@ -205,6 +237,10 @@ enum ParseError {
         got: lexer::TokenKind,
         expected: lexer::TokenKind,
     },
+    OutOfPlace {
+        got: lexer::TokenKind,
+        location: std::ops::Range<usize>,
+    },
 }
 
 impl std::error::Error for ParseError {}
@@ -217,6 +253,13 @@ impl std::fmt::Display for ParseError {
                     f,
                     "Got token: {:?}, Expected  token: {:?}",
                     got, expected
+                )
+            }
+            Self::OutOfPlace { got, location } => {
+                write!(
+                    f,
+                    "Could not parse token {:?}, Location: {:?}",
+                    got, location,
                 )
             }
         }
