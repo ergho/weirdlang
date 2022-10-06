@@ -6,6 +6,8 @@ use lexer::Lexer;
 use lexer::Token;
 use lexer::TokenKind;
 
+type PrefixFn = Box<dyn Fn(&mut Parser) -> Result<Expression, ParseError>>;
+
 #[derive(Debug)]
 struct Program {
     statements: Vec<Statement>,
@@ -30,9 +32,9 @@ impl LetStatement {
     fn parse(parser: &mut Parser) -> Result<Statement, ParseError> {
         let lstmt = LetStatement {
             token: parser.expect_token(TokenKind::Let)?,
-            name: parser.parse_identifier()?,
+            name: parser.expect_identifier()?,
             assign: parser.expect_token(TokenKind::Assign)?,
-            expr: Expression::parse(parser)?,
+            expr: Expression::parse(parser, Precedence::Lowest)?,
         };
         Ok(Statement::Let(lstmt))
     }
@@ -48,7 +50,7 @@ impl ReturnStatement {
     fn parse(parser: &mut Parser) -> Result<Statement, ParseError> {
         let retstmt = ReturnStatement {
             token: parser.expect_token(TokenKind::Return)?,
-            expr: Expression::parse(parser)?,
+            expr: Expression::parse(parser, Precedence::Lowest)?,
         };
         Ok(Statement::Return(retstmt))
     }
@@ -61,52 +63,66 @@ struct ExpressionStatement {
 }
 
 impl ExpressionStatement {
-    fn parse() -> Result<Statement, ParseError> {
+    fn parse(parser: &mut Parser) -> Result<Statement, ParseError> {
+        let _expr = ExpressionStatement {
+            token: parser.current_token.clone(),
+            expr: Expression::parse(parser, Precedence::Lowest)?,
+        };
         todo!();
     }
 }
 
-#[derive(Debug, PartialEq)]
-enum Expression {
+#[derive(Debug, PartialEq, Eq)]
+pub enum Expression {
     Ident(Identifier),
     Number(Number),
+    Prefix,
 }
 
-#[derive(Debug)]
-enum Prefix {
+#[derive(Debug, Clone, Copy)]
+enum Precedence {
+    Lowest,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum Prefix {
     ExclamationMark,
     Minus,
 }
 
 impl Expression {
-    fn parse(parser: &mut Parser) -> Result<Expression, ParseError> {
-        match &parser.current_token.kind {
-            TokenKind::Integer(n) => {
-                Ok(Expression::Number(Number { val: n.to_string() }))
-            }
-            TokenKind::Identifier(s) => {
-                Ok(Expression::Ident(Identifier { val: s.to_string() }))
-            }
-            _ => Err(ParseError::OutOfPlace {
-                got: parser.current_token.kind.clone(),
-                location: parser.current_token.loc.clone(),
-            }),
-        }
+    fn parse(
+        parser: &mut Parser,
+        precedence: Precedence,
+    ) -> Result<Expression, ParseError> {
+        let expr = parser.parse_expression(precedence);
+        parser.next_token();
+        expr
+
+        // match &parser.current_token.kind {
+        //     TokenKind::Integer(n) => {
+        //         Ok(Expression::Number(Number { val: n.to_string() }))
+        //     }
+        //     TokenKind::Identifier(s) => {
+        //         Ok(Expression::Ident(Identifier { val: s.to_string() }))
+        //     }
+        //     _ => panic!(),
+        // }
     }
 }
 
-#[derive(Debug, PartialEq)]
-struct Number {
+#[derive(Debug, PartialEq, Eq)]
+pub struct Number {
     val: String,
 }
 
-#[derive(Debug, PartialEq)]
-struct Identifier {
+#[derive(Debug, PartialEq, Eq)]
+pub struct Identifier {
     val: String,
 }
 
 #[derive(Debug)]
-struct Parser<'a> {
+pub struct Parser<'a> {
     lexer: Lexer<'a>,
     current_token: Token,
     peek_token: Token,
@@ -160,7 +176,6 @@ impl<'a> Parser<'a> {
         self.next_token();
 
         todo!();
-
     }
     fn parse_program(&mut self) -> Program {
         let mut program = Program { statements: vec![] };
@@ -200,7 +215,7 @@ impl<'a> Parser<'a> {
         Ok(retstmt)
     }
 
-    fn parse_identifier(&mut self) -> Result<String, ParseError> {
+    fn expect_identifier(&mut self) -> Result<String, ParseError> {
         let ident = match &self.current_token.kind {
             TokenKind::Identifier(ident) => Ok(ident.to_string()),
             _ => Err(ParseError::Unexpected {
@@ -210,13 +225,34 @@ impl<'a> Parser<'a> {
         };
 
         if ident.is_err() {
-            println!("We are skipping {:?}", self.current_token.kind.clone());
-            println!("Peeking at {:?}", self.peek_token.kind.clone());
             self.skip_until_token(&TokenKind::Semicolon);
             return ident;
         }
         self.next_token();
         ident
+    }
+
+    fn parse_expression(
+        &mut self,
+        precedence: Precedence,
+    ) -> Result<Expression, ParseError> {
+        let prefix = self.prefix_parse_fn();
+        let mut left = match prefix {
+            Some(prefix) => prefix(self)?,
+            None => todo!(),
+        };
+
+        //println!("{:?}", left );
+        //todo!();
+        Ok(left)
+    }
+
+    fn prefix_parse_fn(&self) -> Option<PrefixFn> {
+        Some(Box::new(match self.current_token.kind {
+            TokenKind::Identifier(_) => prefix_expr::parse_identifier,
+            TokenKind::Integer(_) => prefix_expr::parse_number,
+            _ => return None,
+        }))
     }
 }
 fn snapshot_parsing(input: &str) -> String {
@@ -232,14 +268,10 @@ fn snapshot_parsing(input: &str) -> String {
 }
 
 #[derive(Debug)]
-enum ParseError {
+pub enum ParseError {
     Unexpected {
         got: lexer::TokenKind,
         expected: lexer::TokenKind,
-    },
-    OutOfPlace {
-        got: lexer::TokenKind,
-        location: std::ops::Range<usize>,
     },
 }
 
@@ -255,13 +287,35 @@ impl std::fmt::Display for ParseError {
                     got, expected
                 )
             }
-            Self::OutOfPlace { got, location } => {
-                write!(
-                    f,
-                    "Could not parse token {:?}, Location: {:?}",
-                    got, location,
-                )
+        }
+    }
+}
+
+mod prefix_expr {
+    use super::{
+        Expression, Identifier, Number, ParseError, Parser, TokenKind,
+    };
+
+    pub fn parse_number(parser: &mut Parser) -> Result<Expression, ParseError> {
+        match &parser.current_token.kind {
+            TokenKind::Integer(n) => {
+                Ok(Expression::Number(Number { val: n.to_string() }))
             }
+            _ => Err(ParseError::Unexpected {
+                got: parser.current_token.kind.clone(),
+                expected: TokenKind::Integer("1".to_string()),
+            }),
+        }
+    }
+
+    pub fn parse_identifier(
+        parser: &mut Parser,
+    ) -> Result<Expression, ParseError> {
+        match &parser.current_token.kind {
+            TokenKind::Identifier(ident) => Ok(Expression::Ident(Identifier {
+                val: ident.to_string(),
+            })),
+            _ => todo!(),
         }
     }
 }
